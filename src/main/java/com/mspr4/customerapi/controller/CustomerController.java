@@ -2,6 +2,7 @@ package com.mspr4.customerapi.controller;
 
 import com.mspr4.customerapi.model.Customer;
 import com.mspr4.customerapi.service.CustomerService;
+import com.mspr4.customerapi.messaging.CustomerEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,14 +14,18 @@ import java.util.UUID;
 public class CustomerController {
 
     private final CustomerService service;
+    private final CustomerEventPublisher eventPublisher;
 
-    public CustomerController(CustomerService service) {
+    public CustomerController(CustomerService service, CustomerEventPublisher eventPublisher) {
         this.service = service;
+        this.eventPublisher = eventPublisher;
     }
 
     @GetMapping
     public List<Customer> getAllCustomers() {
-        return service.getAllCustomers();
+        List<Customer> customers = service.getAllCustomers();
+
+        return customers;
     }
 
     @GetMapping("/{id}")
@@ -29,12 +34,15 @@ public class CustomerController {
         if (customer == null) {
             return ResponseEntity.notFound().build();
         }
+
         return ResponseEntity.ok(customer);
     }
 
     @PostMapping
     public Customer createCustomer(@RequestBody Customer customer) {
-        return service.saveCustomer(customer);
+        Customer saved = service.saveCustomer(customer);
+        eventPublisher.publishCustomerCreated(saved);
+        return saved;
     }
 
     @PutMapping("/{id}")
@@ -50,6 +58,7 @@ public class CustomerController {
         existing.setIsProspect(updatedCustomer.getIsProspect());
 
         Customer saved = service.saveCustomer(existing);
+        eventPublisher.publishCustomerUpdated(saved);
         return ResponseEntity.ok(saved);
     }
 
@@ -61,6 +70,7 @@ public class CustomerController {
         }
 
         service.deleteCustomer(id);
+        eventPublisher.publishCustomerDeleted(existing); // événement supprimé
         return ResponseEntity.noContent().build();
     }
 }

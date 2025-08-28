@@ -1,34 +1,45 @@
 package com.mspr4.customerapi.controller;
 
+import com.mspr4.customerapi.messaging.CustomerEventPublisher;
 import com.mspr4.customerapi.model.Customer;
 import com.mspr4.customerapi.service.CustomerService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class CustomerControllerTest {
+class CustomerControllerFullTest {
 
     @Mock
     private CustomerService service;
 
+    @Mock
+    private CustomerEventPublisher eventPublisher;
+
     @InjectMocks
     private CustomerController controller;
 
+    private MockMvc mockMvc;
+    private ObjectMapper objectMapper;
     private Customer customer;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        objectMapper = new ObjectMapper();
 
         customer = new Customer();
         customer.setCustomerId(UUID.randomUUID());
@@ -39,95 +50,51 @@ class CustomerControllerTest {
     }
 
     @Test
-    void testGetAllCustomers() {
+    void fullEndpointTest() throws Exception {
+        // GET all
         when(service.getAllCustomers()).thenReturn(Arrays.asList(customer));
+        mockMvc.perform(get("/api/customers"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].firstName").value("John"));
 
-        List<Customer> customers = controller.getAllCustomers();
+        // GET by id
+        when(service.getCustomerById(customer.getCustomerId())).thenReturn(customer);
+        mockMvc.perform(get("/api/customers/{id}", customer.getCustomerId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("john.doe@example.com"));
 
-        assertEquals(1, customers.size());
-        assertEquals("John", customers.get(0).getFirstName());
-    }
-
-    @Test
-    void testGetCustomerById_Found() {
-        UUID id = customer.getCustomerId();
-        when(service.getCustomerById(id)).thenReturn(customer);
-
-        ResponseEntity<Customer> response = controller.getCustomerById(id);
-
-        assertEquals(200, response.getStatusCodeValue());
-        assertEquals("John", response.getBody().getFirstName());
-    }
-
-    @Test
-    void testGetCustomerById_NotFound() {
-        UUID id = UUID.randomUUID();
-        when(service.getCustomerById(id)).thenReturn(null);
-
-        ResponseEntity<Customer> response = controller.getCustomerById(id);
-
-        assertEquals(404, response.getStatusCodeValue());
-        assertNull(response.getBody());
-    }
-
-    @Test
-    void testCreateCustomer() {
+        // POST
         when(service.saveCustomer(any(Customer.class))).thenReturn(customer);
+        mockMvc.perform(post("/api/customers")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(customer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName").value("John"));
+        verify(eventPublisher, times(1)).publishCustomerCreated(any(Customer.class));
 
-        Customer created = controller.createCustomer(customer);
-
-        assertEquals("John", created.getFirstName());
-        verify(service, times(1)).saveCustomer(any(Customer.class));
-    }
-
-    @Test
-    void testUpdateCustomer_Found() {
-        UUID id = customer.getCustomerId();
+        // PUT
         Customer updated = new Customer();
         updated.setFirstName("Jane");
         updated.setLastName("Smith");
         updated.setEmail("jane.smith@example.com");
         updated.setIsProspect(false);
 
-        when(service.getCustomerById(id)).thenReturn(customer);
+        when(service.getCustomerById(customer.getCustomerId())).thenReturn(customer);
         when(service.saveCustomer(any(Customer.class))).thenReturn(updated);
 
-        ResponseEntity<Customer> response = controller.updateCustomer(id, updated);
+        mockMvc.perform(put("/api/customers/{id}", customer.getCustomerId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updated)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName").value("Jane"));
+        verify(eventPublisher, times(1)).publishCustomerUpdated(any(Customer.class));
 
-        assertEquals(200, response.getStatusCodeValue());
-        assertEquals("Jane", response.getBody().getFirstName());
-    }
+        // DELETE
+        when(service.getCustomerById(customer.getCustomerId())).thenReturn(customer);
+        doNothing().when(service).deleteCustomer(customer.getCustomerId());
 
-    @Test
-    void testUpdateCustomer_NotFound() {
-        UUID id = UUID.randomUUID();
-        when(service.getCustomerById(id)).thenReturn(null);
-
-        ResponseEntity<Customer> response = controller.updateCustomer(id, customer);
-
-        assertEquals(404, response.getStatusCodeValue());
-    }
-
-    @Test
-    void testDeleteCustomer_Found() {
-        UUID id = customer.getCustomerId();
-        when(service.getCustomerById(id)).thenReturn(customer);
-        doNothing().when(service).deleteCustomer(id);
-
-        ResponseEntity<Void> response = controller.deleteCustomer(id);
-
-        assertEquals(204, response.getStatusCodeValue());
-        verify(service, times(1)).deleteCustomer(id);
-    }
-
-    @Test
-    void testDeleteCustomer_NotFound() {
-        UUID id = UUID.randomUUID();
-        when(service.getCustomerById(id)).thenReturn(null);
-
-        ResponseEntity<Void> response = controller.deleteCustomer(id);
-
-        assertEquals(404, response.getStatusCodeValue());
-        verify(service, never()).deleteCustomer(id);
+        mockMvc.perform(delete("/api/customers/{id}", customer.getCustomerId()))
+                .andExpect(status().isNoContent());
+        verify(eventPublisher, times(1)).publishCustomerDeleted(any(Customer.class));
     }
 }
