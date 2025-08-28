@@ -1,10 +1,10 @@
-package com.mspr4.productsapi;
+package com.mspr4.customerapi;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ProductsApiApplicationTests {
+class CustomerApiApplicationTests {
 
     @Test
     void contextLoads() {
