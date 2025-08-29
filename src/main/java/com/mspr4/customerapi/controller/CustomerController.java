@@ -55,7 +55,7 @@ public class CustomerController {
         existing.setFirstName(updatedCustomer.getFirstName());
         existing.setLastName(updatedCustomer.getLastName());
         existing.setEmail(updatedCustomer.getEmail());
-        existing.setIsProspect(updatedCustomer.getIsProspect());
+
 
         Customer saved = service.saveCustomer(existing);
         eventPublisher.publishCustomerUpdated(saved);
