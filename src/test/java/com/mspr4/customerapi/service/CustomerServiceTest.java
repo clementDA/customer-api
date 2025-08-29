@@ -35,7 +35,7 @@ class CustomerServiceTest {
         customer.setFirstName("John");
         customer.setLastName("Doe");
         customer.setEmail("john.doe@example.com");
-        customer.setIsProspect(true);
+        customer.setCompanyName("Read");
     }
 
     @Test

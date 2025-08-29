@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class CustomerControllerFullTest {
+class CustomerControllerTest {
 
     @Mock
     private CustomerService service;
@@ -46,7 +46,7 @@ class CustomerControllerFullTest {
         customer.setFirstName("John");
         customer.setLastName("Doe");
         customer.setEmail("john.doe@example.com");
-        customer.setIsProspect(true);
+        customer.setCompanyName("Reag");
     }
 
     @Test
@@ -77,7 +77,7 @@ class CustomerControllerFullTest {
         updated.setFirstName("Jane");
         updated.setLastName("Smith");
         updated.setEmail("jane.smith@example.com");
-        updated.setIsProspect(false);
+        updated.setCompanyName("Dear");
 
         when(service.getCustomerById(customer.getCustomerId())).thenReturn(customer);
         when(service.saveCustomer(any(Customer.class))).thenReturn(updated);
