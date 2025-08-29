@@ -8,7 +8,7 @@ WORKDIR /app
 COPY target/customer-api-0.0.1-SNAPSHOT.jar app.jar
 
 # Exposer le port de l'application
-EXPOSE 8081
+EXPOSE 8083
 
 # Commande de démarrage
 ENTRYPOINT ["java","-jar","app.jar"]
